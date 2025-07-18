@@ -42,3 +42,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated PDFs
+*.pdf
+!content_inputs/whitepaper.pdf

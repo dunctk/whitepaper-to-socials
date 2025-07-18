@@ -203,10 +203,16 @@ class WhitepaperProcessor:
         Use fresh, varied opening lines that are different from the above patterns.
         """
 
+        # Get current date context
+        current_date = datetime.now()
+        current_month_year = current_date.strftime("%B %Y")
+        
         prompt = f"""
         Based on this chart analysis, generate 2 distinct LinkedIn posts:
 
         Analysis: {json.dumps(image_analysis, indent=2)}
+
+        Context: It is currently {current_month_year}. Do not reference future dates or say things like "as we advance towards 2025" when we are already past that date.
 
         Requirements:
         - Each post should be engaging and professional
