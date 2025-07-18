@@ -1,4 +1,3 @@
-*.pdf
 .env
 *.png
 *.db
@@ -43,6 +42,5 @@ env/
 .DS_Store
 Thumbs.db
 
-# Generated PDFs
+# Generated PDFs only (keep input PDF)
 pdf_outputs/
-!content_inputs/whitepaper.pdf
