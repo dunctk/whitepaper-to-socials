@@ -42,5 +42,6 @@ env/
 .DS_Store
 Thumbs.db
 
-# Generated PDFs only (keep input PDF)
+# All PDFs (both input and generated)
+*.pdf
 pdf_outputs/
