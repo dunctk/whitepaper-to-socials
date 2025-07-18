@@ -44,5 +44,5 @@ env/
 Thumbs.db
 
 # Generated PDFs
-*.pdf
+pdf_outputs/
 !content_inputs/whitepaper.pdf

@@ -29,7 +29,14 @@ load_dotenv()
 
 class LinkedInPostsPDFGenerator:
     def __init__(self, output_filename: str = None):
-        self.output_filename = output_filename or f"linkedin_posts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        # Create output directory if it doesn't exist
+        output_dir = Path("pdf_outputs")
+        output_dir.mkdir(exist_ok=True)
+        
+        if output_filename:
+            self.output_filename = str(output_dir / output_filename)
+        else:
+            self.output_filename = str(output_dir / f"linkedin_posts_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
         
         # NocoDB configuration
         self.nocodb_base_url = os.getenv("NOCODB_BASE_URL")
@@ -108,8 +115,8 @@ class LinkedInPostsPDFGenerator:
             click.echo(f"Error fetching posts from NocoDB: {e}", err=True)
             return []
     
-    def _download_image(self, image_info: Dict) -> Optional[str]:
-        """Download image from NocoDB and return local path"""
+    def _download_image(self, image_info: Dict, image_index: int = None) -> Optional[str]:
+        """Download image from NocoDB or fallback to local image"""
         try:
             if not image_info:
                 return None
@@ -129,8 +136,13 @@ class LinkedInPostsPDFGenerator:
             if image_url.startswith('/'):
                 image_url = f"{self.nocodb_base_url}{image_url}"
             
-            # Download the image
-            response = requests.get(image_url)
+            # Add authentication headers for NocoDB
+            headers = {
+                'xc-token': self.nocodb_api_key
+            }
+            
+            # Try to download the image
+            response = requests.get(image_url, headers=headers)
             response.raise_for_status()
             
             # Create temporary file
@@ -140,6 +152,14 @@ class LinkedInPostsPDFGenerator:
                 
         except Exception as e:
             click.echo(f"Error downloading image: {e}", err=True)
+            
+            # Fallback: try to find local image based on image_index
+            if image_index is not None:
+                local_image_path = Path(f"content_inputs/images/images-{image_index}.png")
+                if local_image_path.exists():
+                    click.echo(f"Using local fallback image: {local_image_path}")
+                    return str(local_image_path)
+            
             return None
     
     def _create_linkedin_post_elements(self, post_data: Dict) -> List:
@@ -157,8 +177,9 @@ class LinkedInPostsPDFGenerator:
         
         # Add image if available
         image_info = post_data.get('image')
+        image_index = post_data.get('image_index')
         if image_info:
-            image_path = self._download_image(image_info)
+            image_path = self._download_image(image_info, image_index)
             if image_path:
                 try:
                     # Open image to get dimensions
@@ -182,8 +203,9 @@ class LinkedInPostsPDFGenerator:
                     elements.append(rl_image)
                     elements.append(Spacer(1, 0.2 * inch))
                     
-                    # Clean up temp file
-                    os.unlink(image_path)
+                    # Clean up temp file (only if it's a downloaded temp file)
+                    if image_path.startswith('/tmp') or image_path.startswith(tempfile.gettempdir()):
+                        os.unlink(image_path)
                     
                 except Exception as e:
                     click.echo(f"Error processing image: {e}", err=True)
@@ -195,25 +217,13 @@ class LinkedInPostsPDFGenerator:
             paragraphs = post_content.split('\n\n')
             for para in paragraphs:
                 if para.strip():
-                    # Clean up the paragraph
-                    para_text = para.strip().replace('\n', '<br/>')
+                    # Clean up the paragraph and handle line breaks
+                    para_text = para.strip()
+                    # Replace single newlines with double spaces for proper line breaks
+                    para_text = para_text.replace('\n', '  <br/>')
                     para_element = Paragraph(para_text, self.styles['LinkedInPost'])
                     elements.append(para_element)
                     elements.append(Spacer(1, 0.1 * inch))
-        
-        # Add metadata
-        created_at = post_data.get('CreatedAt', '')
-        if created_at:
-            try:
-                # Parse the date and format it nicely
-                date_obj = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-                formatted_date = date_obj.strftime('%B %d, %Y at %I:%M %p')
-                meta_text = f"Posted on {formatted_date}"
-                meta_para = Paragraph(meta_text, self.styles['LinkedInMeta'])
-                elements.append(Spacer(1, 0.2 * inch))
-                elements.append(meta_para)
-            except:
-                pass
         
         return elements
     
