@@ -98,8 +98,8 @@ class LinkedInPostsPDFGenerator:
             'xc-token': self.nocodb_api_key
         }
         
-        # Fetch all posts, sorted by creation date
-        url = f"{self.nocodb_base_url}/api/v2/tables/{self.nocodb_table_id}/records?limit=1000&sort=CreatedAt"
+        # Fetch all posts with full attachment info, sorted by creation date
+        url = f"{self.nocodb_base_url}/api/v2/tables/{self.nocodb_table_id}/records?limit=1000&sort=CreatedAt&fields=*"
         
         try:
             response = requests.get(url, headers=headers)
@@ -115,52 +115,25 @@ class LinkedInPostsPDFGenerator:
             click.echo(f"Error fetching posts from NocoDB: {e}", err=True)
             return []
     
-    def _download_image(self, image_info: Dict, image_index: int = None) -> Optional[str]:
-        """Download image from NocoDB or fallback to local image"""
-        try:
-            if not image_info:
-                return None
-                
-            # Handle both single image and array of images
-            if isinstance(image_info, list) and len(image_info) > 0:
-                image_data = image_info[0]
+    def _get_local_image_path(self, post_data: Dict) -> Optional[str]:
+        """Get local image path using image_filename from NocoDB"""
+        image_filename = post_data.get('image_filename')
+        if image_filename:
+            local_image_path = Path(f"content_inputs/images/{image_filename}")
+            if local_image_path.exists():
+                return str(local_image_path)
             else:
-                image_data = image_info
-                
-            if not isinstance(image_data, dict) or 'url' not in image_data:
-                return None
-                
-            image_url = image_data['url']
-            
-            # If URL is relative, make it absolute
-            if image_url.startswith('/'):
-                image_url = f"{self.nocodb_base_url}{image_url}"
-            
-            # Add authentication headers for NocoDB
-            headers = {
-                'xc-token': self.nocodb_api_key
-            }
-            
-            # Try to download the image
-            response = requests.get(image_url, headers=headers)
-            response.raise_for_status()
-            
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_file:
-                tmp_file.write(response.content)
-                return tmp_file.name
-                
-        except Exception as e:
-            click.echo(f"Error downloading image: {e}", err=True)
-            
-            # Fallback: try to find local image based on image_index
-            if image_index is not None:
-                local_image_path = Path(f"content_inputs/images/images-{image_index}.png")
-                if local_image_path.exists():
-                    click.echo(f"Using local fallback image: {local_image_path}")
-                    return str(local_image_path)
-            
-            return None
+                click.echo(f"Local image not found: {local_image_path}")
+        
+        # Fallback to image_index if filename not available
+        image_index = post_data.get('image_index')
+        if image_index is not None:
+            local_image_path = Path(f"content_inputs/images/images-{image_index}.png")
+            if local_image_path.exists():
+                click.echo(f"Using fallback image: {local_image_path}")
+                return str(local_image_path)
+        
+        return None
     
     def _create_linkedin_post_elements(self, post_data: Dict) -> List:
         """Create reportlab elements for a single LinkedIn post"""
@@ -176,39 +149,36 @@ class LinkedInPostsPDFGenerator:
         elements.append(Spacer(1, 0.2 * inch))
         
         # Add image if available
-        image_info = post_data.get('image')
-        image_index = post_data.get('image_index')
-        if image_info:
-            image_path = self._download_image(image_info, image_index)
-            if image_path:
-                try:
-                    # Open image to get dimensions
-                    with Image.open(image_path) as img:
-                        img_width, img_height = img.size
-                        
-                    # Calculate scaled dimensions to fit in LinkedIn box
-                    max_width = self.linkedin_box_width - 40  # Account for padding
-                    max_height = 3 * inch  # Maximum height for image
-                    
-                    # Scale image proportionally
-                    scale_w = max_width / img_width
-                    scale_h = max_height / img_height
-                    scale = min(scale_w, scale_h)
-                    
-                    scaled_width = img_width * scale
-                    scaled_height = img_height * scale
-                    
-                    # Create reportlab image
-                    rl_image = RLImage(image_path, width=scaled_width, height=scaled_height)
-                    elements.append(rl_image)
-                    elements.append(Spacer(1, 0.2 * inch))
-                    
-                    # Clean up temp file (only if it's a downloaded temp file)
-                    if image_path.startswith('/tmp') or image_path.startswith(tempfile.gettempdir()):
-                        os.unlink(image_path)
-                    
-                except Exception as e:
-                    click.echo(f"Error processing image: {e}", err=True)
+        image_path = self._get_local_image_path(post_data)
+        if image_path:
+            try:
+                # Open image to get dimensions
+                with Image.open(image_path) as img:
+                    img_width, img_height = img.size
+                
+                # Calculate scaled dimensions to fit in LinkedIn box
+                max_width = self.linkedin_box_width - 40  # Account for padding
+                max_height = 3 * inch  # Maximum height for image
+                
+                # Scale image proportionally
+                scale_w = max_width / img_width
+                scale_h = max_height / img_height
+                scale = min(scale_w, scale_h)
+                
+                scaled_width = img_width * scale
+                scaled_height = img_height * scale
+                
+                # Create reportlab image
+                rl_image = RLImage(image_path, width=scaled_width, height=scaled_height)
+                elements.append(rl_image)
+                elements.append(Spacer(1, 0.2 * inch))
+                
+                # Clean up temp file (only if it's a downloaded temp file)
+                if image_path.startswith('/tmp') or image_path.startswith(tempfile.gettempdir()):
+                    os.unlink(image_path)
+                
+            except Exception as e:
+                click.echo(f"Error processing image: {e}", err=True)
         
         # Add post content
         post_content = post_data.get('post', '')
@@ -251,6 +221,10 @@ class LinkedInPostsPDFGenerator:
         # Process each post
         for i, post in enumerate(posts):
             click.echo(f"Processing post {i+1}/{len(posts)}")
+            
+            # Show progress
+            image_filename = post.get('image_filename', 'unknown')
+            click.echo(f"Post {i+1}: Using image {image_filename}")
             
             # Create elements for this post
             post_elements = self._create_linkedin_post_elements(post)

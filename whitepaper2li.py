@@ -319,11 +319,15 @@ class WhitepaperProcessor:
         else:
             plain_description = str(image_description)
 
+        # Extract just the filename from the image path
+        image_filename = Path(image_path).name
+        
         data = {
             'post': post,
             'image': [image_info],  # NocoDB expects array of objects with full file info
             'image_description': plain_description,
-            'image_index': image_index
+            'image_index': image_index,
+            'image_filename': image_filename
         }
 
         url = f"{self.nocodb_base_url}/api/v2/tables/{self.nocodb_table_id}/records"
