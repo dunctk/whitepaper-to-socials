@@ -210,7 +210,7 @@ class WhitepaperProcessor:
             click.echo(f"Error fetching recent posts: {e}", err=True)
             return [], []
 
-    def _generate_linkedin_posts(self, image_analysis: Dict) -> List[str]:
+    def _generate_linkedin_posts(self, image_analysis: Dict, whitepaper_content: str = "") -> List[str]:
         """Generate LinkedIn posts using GPT-4.1"""
 
         # Get recent post intros and full content to avoid repetition
@@ -242,12 +242,24 @@ class WhitepaperProcessor:
         import random
         selected_tones = random.sample(tone_variations, 2)
         
+        # Prepare whitepaper context (truncate if too long)
+        whitepaper_context = ""
+        if whitepaper_content:
+            # Truncate whitepaper content to avoid token limits (keep first 8000 chars)
+            truncated_content = whitepaper_content[:8000] + "..." if len(whitepaper_content) > 8000 else whitepaper_content
+            whitepaper_context = f"""
+
+        FULL WHITEPAPER CONTEXT (for broader understanding):
+        {truncated_content}
+        """
+        
         prompt = f"""
-        Based on this chart analysis, generate 2 DISTINCTLY DIFFERENT LinkedIn posts with these specific tones:
+        Based on this specific chart analysis, generate 2 DISTINCTLY DIFFERENT LinkedIn posts with these specific tones:
         Post 1: {selected_tones[0]}
         Post 2: {selected_tones[1]}
 
-        Analysis: {json.dumps(image_analysis, indent=2)}
+        SPECIFIC CHART ANALYSIS (focus your posts on this): {json.dumps(image_analysis, indent=2)}
+        {whitepaper_context}
 
         Context: It is currently {current_month_year}. Do not reference future dates.
 
@@ -513,7 +525,7 @@ class WhitepaperProcessor:
             image_analysis = self._analyze_image(image_path)
 
             # Generate LinkedIn posts
-            posts = self._generate_linkedin_posts(image_analysis)
+            posts = self._generate_linkedin_posts(image_analysis, markdown_content)
 
             # Store each post
             for post in posts:
