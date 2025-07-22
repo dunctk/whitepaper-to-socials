@@ -230,17 +230,42 @@ class WhitepaperProcessor:
         current_date = datetime.now()
         current_month_year = current_date.strftime("%B %Y")
         
-        # Define tone variations for posts
-        tone_variations = [
+        # Define tone variations with corporate/conversational split (60%/40%)
+        corporate_tones = [
             "analytical_professional",
-            "conversational_insights", 
-            "data_storytelling",
-            "industry_expert",
+            "data_storytelling", 
+            "industry_expert"
+        ]
+        
+        conversational_tones = [
+            "conversational_insights",
             "practical_takeaways"
         ]
         
         import random
-        selected_tones = random.sample(tone_variations, 2)
+        
+        # Select tones with 60% corporate, 40% conversational weighting
+        selected_tones = []
+        for _ in range(2):
+            if random.random() < 0.6:  # 60% chance for corporate tone
+                selected_tones.append(random.choice(corporate_tones))
+            else:  # 40% chance for conversational tone
+                selected_tones.append(random.choice(conversational_tones))
+        
+        # Random choice: include report name 30% of the time
+        include_report_name = random.random() < 0.3
+        report_name_guidance = ""
+        
+        if include_report_name:
+            report_name_guidance = f"""
+        
+        REPORT REFERENCE: Mention the report name "{self.whitepaper_name}" naturally in the post (not necessarily at the beginning).
+        """
+        else:
+            report_name_guidance = """
+        
+        REPORT REFERENCE: Do NOT mention the specific report name. Use generic references like "our research", "our latest study", "new data shows", etc.
+        """
         
         # Prepare whitepaper context (truncate if too long)
         whitepaper_context = ""
@@ -260,6 +285,7 @@ class WhitepaperProcessor:
 
         SPECIFIC CHART ANALYSIS (focus your posts on this): {json.dumps(image_analysis, indent=2)}
         {whitepaper_context}
+        {report_name_guidance}
 
         Context: It is currently {current_month_year}. Do not reference future dates.
 
@@ -279,11 +305,9 @@ class WhitepaperProcessor:
         - Use concrete, specific numbers and facts from the data
         - Each post must take a completely different angle on the same data
         - Keep under 280 words each
-        - Mention the data source naturally (from "{self.whitepaper_name}")
         
         VOICE AND PERSPECTIVE:
         - Use first-person plural: "our research", "we found", "our data shows"
-        - Reference the actual whitepaper by name: "{self.whitepaper_name}"
         - Speak as the organization that published the research
         - Use only data and insights that are actually present in the chart analysis provided
         
