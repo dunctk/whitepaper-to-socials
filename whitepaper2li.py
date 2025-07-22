@@ -156,7 +156,28 @@ class WhitepaperProcessor:
         except (json.JSONDecodeError, IndexError):
             return {"title": "Chart Analysis", "key_insights": response.choices[0].message.content, "data_points": []}
 
-    def _check_content_similarity(self, new_post: str, recent_posts: List[str], threshold: float = 0.7) -> bool:\n        \"\"\"Check if new post is too similar to recent posts using simple word overlap\"\"\"\n        if not recent_posts:\n            return False\n            \n        new_words = set(new_post.lower().split())\n        \n        for recent_post in recent_posts:\n            recent_words = set(recent_post.lower().split())\n            if len(new_words) == 0 or len(recent_words) == 0:\n                continue\n                \n            # Calculate Jaccard similarity (intersection over union)\n            intersection = len(new_words.intersection(recent_words))\n            union = len(new_words.union(recent_words))\n            similarity = intersection / union if union > 0 else 0\n            \n            if similarity > threshold:\n                return True\n        return False\n\n    def _get_recent_posts(self, limit: int = 10) -> Tuple[List[str], List[str]]:
+    def _check_content_similarity(self, new_post: str, recent_posts: List[str], threshold: float = 0.7) -> bool:
+        """Check if new post is too similar to recent posts using simple word overlap"""
+        if not recent_posts:
+            return False
+            
+        new_words = set(new_post.lower().split())
+        
+        for recent_post in recent_posts:
+            recent_words = set(recent_post.lower().split())
+            if len(new_words) == 0 or len(recent_words) == 0:
+                continue
+                
+            # Calculate Jaccard similarity (intersection over union)
+            intersection = len(new_words.intersection(recent_words))
+            union = len(new_words.union(recent_words))
+            similarity = intersection / union if union > 0 else 0
+            
+            if similarity > threshold:
+                return True
+        return False
+
+    def _get_recent_posts(self, limit: int = 10) -> Tuple[List[str], List[str]]:
         """Get recent post intros and full content for similarity checking"""
         if not all([self.nocodb_base_url, self.nocodb_api_key, self.nocodb_table_id]):
             return [], []
