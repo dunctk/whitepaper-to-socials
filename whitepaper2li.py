@@ -126,7 +126,7 @@ class WhitepaperProcessor:
             image_data = base64.b64encode(image_file.read()).decode('utf-8')
 
         response = self.client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4.1",
             messages=[
                 {
                     "role": "user",
@@ -156,10 +156,10 @@ class WhitepaperProcessor:
         except (json.JSONDecodeError, IndexError):
             return {"title": "Chart Analysis", "key_insights": response.choices[0].message.content, "data_points": []}
 
-    def _get_recent_post_intros(self, limit: int = 5) -> List[str]:
-        """Get the first 20 words from recent posts to avoid repetitive intros"""
+    def _check_content_similarity(self, new_post: str, recent_posts: List[str], threshold: float = 0.7) -> bool:\n        \"\"\"Check if new post is too similar to recent posts using simple word overlap\"\"\"\n        if not recent_posts:\n            return False\n            \n        new_words = set(new_post.lower().split())\n        \n        for recent_post in recent_posts:\n            recent_words = set(recent_post.lower().split())\n            if len(new_words) == 0 or len(recent_words) == 0:\n                continue\n                \n            # Calculate Jaccard similarity (intersection over union)\n            intersection = len(new_words.intersection(recent_words))\n            union = len(new_words.union(recent_words))\n            similarity = intersection / union if union > 0 else 0\n            \n            if similarity > threshold:\n                return True\n        return False\n\n    def _get_recent_posts(self, limit: int = 10) -> Tuple[List[str], List[str]]:
+        """Get recent post intros and full content for similarity checking"""
         if not all([self.nocodb_base_url, self.nocodb_api_key, self.nocodb_table_id]):
-            return []
+            return [], []
 
         try:
             headers = {
@@ -172,86 +172,157 @@ class WhitepaperProcessor:
 
             data = response.json()
             recent_intros = []
+            recent_full_posts = []
 
             for record in data.get('list', []):
                 post_content = record.get('post', '')
                 if post_content:
-                    # Extract first 20 words
+                    # Extract first 20 words for intro checking
                     words = post_content.split()
                     first_20_words = ' '.join(words[:20])
                     recent_intros.append(first_20_words)
+                    recent_full_posts.append(post_content)
 
-            return recent_intros
+            return recent_intros, recent_full_posts
 
         except Exception as e:
             click.echo(f"Error fetching recent posts: {e}", err=True)
-            return []
+            return [], []
 
     def _generate_linkedin_posts(self, image_analysis: Dict) -> List[str]:
         """Generate LinkedIn posts using GPT-4.1"""
 
-        # Get recent post intros to avoid repetition
-        recent_intros = self._get_recent_post_intros()
+        # Get recent post intros and full content to avoid repetition
+        recent_intros, recent_full_posts = self._get_recent_posts()
 
         intro_guidance = ""
         if recent_intros:
             intro_guidance = f"""
 
-        IMPORTANT: Avoid starting posts with similar language to these recent post beginnings:
+        CRITICAL: Avoid starting posts with similar language to these recent post beginnings:
         {chr(10).join(f'- "{intro}"' for intro in recent_intros)}
 
-        Use fresh, varied opening lines that are different from the above patterns.
+        Use completely different opening approaches that vary in tone and structure.
         """
 
         # Get current date context
         current_date = datetime.now()
         current_month_year = current_date.strftime("%B %Y")
         
+        # Define tone variations for posts
+        tone_variations = [
+            "analytical_professional",
+            "conversational_insights", 
+            "data_storytelling",
+            "industry_expert",
+            "practical_takeaways"
+        ]
+        
+        import random
+        selected_tones = random.sample(tone_variations, 2)
+        
         prompt = f"""
-        Based on this chart analysis, generate 2 distinct LinkedIn posts:
+        Based on this chart analysis, generate 2 DISTINCTLY DIFFERENT LinkedIn posts with these specific tones:
+        Post 1: {selected_tones[0]}
+        Post 2: {selected_tones[1]}
 
         Analysis: {json.dumps(image_analysis, indent=2)}
 
-        Context: It is currently {current_month_year}. Do not reference future dates or say things like "as we advance towards 2025" when we are already past that date.
+        Context: It is currently {current_month_year}. Do not reference future dates.
 
-        Requirements:
-        - Each post should be engaging and professional
-        - Use NO emojis at all
-        - Include line breaks for readability (break up longer paragraphs)
-        - Use maximum 3 hashtags only
-        - Never use em dashes (—) - use semicolons, colons, or commas instead
-        - AVOID these overused AI-sounding terms completely: delve, evolve, landscape, revolutionize, transform, disrupt, leverage, synergy, paradigm, cutting-edge, groundbreaking, game-changing, transformational, ever-evolving, revolutionary, innovative, unlock, unleash, harness, empower, optimize, streamline, enhance, elevate, reimagine, redefine, reshape, transcend, next-level, state-of-the-art, world-class, best-in-class, seamless, robust, scalable, dynamic, agile, comprehensive, holistic, strategic, tactical, mission-critical, value-added, end-to-end, turnkey, plug-and-play, future-proof, AI-powered, data-driven (unless literally describing AI or data processes)
-        - Write like a human business professional, not a marketing bot
-        - Use concrete, specific language instead of buzzwords
-        - Focus on different aspects of the data
-        - Keep posts under 300 words each
-        - Make them shareable and insightful
-        - Use varied and creative opening lines
-        - Stick to material from the whitepaper data
-        - Subtly mention this data comes from the "{self.whitepaper_name}" whitepaper or research report
+        TONE GUIDELINES:
+        - analytical_professional: Direct, data-focused, corporate but not stuffy
+        - conversational_insights: Approachable, question-based, discussion-starter
+        - data_storytelling: Narrative approach, "what this means" focus
+        - industry_expert: Authoritative but accessible, implications-focused
+        - practical_takeaways: Actionable, "here's what you can do" approach
+
+        STRICT REQUIREMENTS:
+        - NO emojis whatsoever
+        - Break up text with line breaks for readability
+        - Maximum 3 hashtags, make them specific and relevant
+        - Never use em dashes (—), use other punctuation
+        - Write like a real person, not marketing copy
+        - Use concrete, specific numbers and facts from the data
+        - Each post must take a completely different angle on the same data
+        - Keep under 280 words each
+        - Mention the data source naturally (from "{self.whitepaper_name}")
+        
+        FORBIDDEN PHRASES (use alternatives):
+        Instead of "According to our whitepaper" → "Our recent research shows" or "The data reveals" or "We found that"
+        Instead of "fascinating insights" → "interesting findings" or "key discoveries" or "notable patterns"
+        Instead of "How does your organization...?" → specific, relevant questions about their actual situation
+        Instead of buzzwords like "landscape, paradigm, unlock" → plain business language
+        
+        OPENING LINE VARIETY (use different approaches):
+        - Start with a specific statistic
+        - Begin with an observation or trend
+        - Open with a surprising finding
+        - Lead with a practical insight
+        - Start with industry context
         {intro_guidance}
 
         Return ONLY the post content as plain text, separated by "---POST SEPARATOR---"
-        Do NOT use JSON format.
+        Do NOT use JSON format or markdown formatting.
         """
 
         response = self.client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=1500
+            model="gpt-4.1",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "You are a senior business professional writing authentic LinkedIn posts. Avoid AI-sounding language and marketing speak. Write like a real person sharing genuine insights from data."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1500,
+            temperature=0.8
         )
 
         content = response.choices[0].message.content
         # Split by separator and clean up
         posts = content.split("---POST SEPARATOR---")
         
-        # Clean up posts and replace em dashes as fallback
+        # Clean up posts, replace em dashes, and check for similarity
         cleaned_posts = []
         for post in posts:
             if post.strip():
                 # Replace em dashes with regular dashes as fallback
                 cleaned_post = post.strip().replace('—', '-')
+                
+                # Check if this post is too similar to recent posts
+                if self._check_content_similarity(cleaned_post, recent_full_posts, threshold=0.6):
+                    click.echo(f"Skipping similar post: {cleaned_post[:50]}...")
+                    continue
+                    
                 cleaned_posts.append(cleaned_post)
+        
+        # If all posts were filtered out due to similarity, regenerate with stricter guidance
+        if not cleaned_posts and recent_full_posts:
+            click.echo("All posts were too similar, regenerating with stricter guidance...")
+            # Add more specific anti-similarity instruction and try once more
+            stricter_prompt = prompt + "\n\nIMPORTANT: The previous attempt was too similar to existing content. Be extremely creative and use completely different approaches, structures, and vocabulary."
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4.1",
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "You are a senior business professional writing authentic LinkedIn posts. Avoid AI-sounding language and marketing speak. Write like a real person sharing genuine insights from data. Focus on being distinctly different from existing content."
+                    },
+                    {"role": "user", "content": stricter_prompt}
+                ],
+                max_tokens=1500,
+                temperature=0.9
+            )
+            
+            content = response.choices[0].message.content
+            posts = content.split("---POST SEPARATOR---")
+            
+            for post in posts:
+                if post.strip():
+                    cleaned_post = post.strip().replace('—', '-')
+                    cleaned_posts.append(cleaned_post)
         
         return cleaned_posts
 
