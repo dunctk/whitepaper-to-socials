@@ -296,6 +296,16 @@ class WhitepaperProcessor:
         - industry_expert: Authoritative but accessible, implications-focused
         - practical_takeaways: Actionable, "here's what you can do" approach
 
+        UNIQUE PERSPECTIVES AND INSIGHTS:
+        - Look for surprising or counterintuitive findings in the data that challenge common assumptions
+        - Identify industry trends or shifts that this data reveals or confirms
+        - Connect dots between different data points to reveal broader patterns
+        - Highlight implications that aren't immediately obvious from surface-level reading
+        - Share observations about what this means for the industry's future direction
+        - Point out any gaps between conventional wisdom and what the data actually shows
+        - Discuss potential causes behind the trends you're seeing in the data
+        - Offer expert commentary on why these patterns matter for business leaders
+
         STRICT REQUIREMENTS:
         - NO emojis whatsoever
         - Break up text with line breaks for readability
@@ -322,11 +332,14 @@ class WhitepaperProcessor:
         - If specific numbers aren't clear from the chart, describe trends and patterns instead
         
         OPENING LINE VARIETY (use different approaches):
-        - Start with a specific statistic
-        - Begin with an observation or trend
-        - Open with a surprising finding
-        - Lead with a practical insight
-        - Start with industry context
+        - Start with a specific statistic that challenges expectations
+        - Begin with an observation about industry trends or shifts
+        - Open with a surprising or counterintuitive finding
+        - Lead with a practical insight or implication
+        - Start with industry context or expert perspective
+        - Begin with "What if..." or "Consider this..." for thought-provoking angle
+        - Open with a comparison that reveals unexpected patterns
+        - Start with expert analysis of what the data really means
         {intro_guidance}
 
         Return ONLY the post content as plain text, separated by "---POST SEPARATOR---"
@@ -338,7 +351,7 @@ class WhitepaperProcessor:
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are a senior business professional writing LinkedIn posts for your organization's research publication. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Write authentically, avoiding AI-sounding language and marketing speak."
+                    "content": "You are a senior business professional and industry thought leader writing LinkedIn posts about your organization's research. Provide unique insights, challenge assumptions, and offer expert perspective on industry trends. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Write authentically with valuable insights, avoiding AI-sounding language and marketing speak."
                 },
                 {"role": "user", "content": prompt}
             ],
@@ -375,7 +388,7 @@ class WhitepaperProcessor:
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a senior business professional writing LinkedIn posts for your organization's research publication. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Focus on being distinctly different from existing content while maintaining authenticity."
+                        "content": "You are a senior business professional and industry thought leader writing LinkedIn posts about your organization's research. Provide unique insights, challenge assumptions, and offer expert perspective on industry trends. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Focus on being distinctly different from existing content while providing valuable insights."
                     },
                     {"role": "user", "content": stricter_prompt}
                 ],
