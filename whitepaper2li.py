@@ -269,11 +269,21 @@ class WhitepaperProcessor:
         - Keep under 280 words each
         - Mention the data source naturally (from "{self.whitepaper_name}")
         
+        VOICE AND PERSPECTIVE:
+        - Use first-person plural: "our research", "we found", "our data shows"
+        - Reference the actual whitepaper by name: "{self.whitepaper_name}"
+        - Speak as the organization that published the research
+        - Use only data and insights that are actually present in the chart analysis provided
+        
         FORBIDDEN PHRASES (use alternatives):
-        Instead of "According to our whitepaper" → "Our recent research shows" or "The data reveals" or "We found that"
-        Instead of "fascinating insights" → "interesting findings" or "key discoveries" or "notable patterns"
+        Instead of "fascinating insights" → "interesting findings" or "key discoveries" or "notable patterns"  
         Instead of "How does your organization...?" → specific, relevant questions about their actual situation
         Instead of buzzwords like "landscape, paradigm, unlock" → plain business language
+        
+        DATA ACCURACY:
+        - ONLY reference statistics, percentages, and findings that appear in the chart analysis provided
+        - Do not invent or assume data points that aren't clearly shown in the analysis
+        - If specific numbers aren't clear from the chart, describe trends and patterns instead
         
         OPENING LINE VARIETY (use different approaches):
         - Start with a specific statistic
@@ -292,7 +302,7 @@ class WhitepaperProcessor:
             messages=[
                 {
                     "role": "system", 
-                    "content": "You are a senior business professional writing authentic LinkedIn posts. Avoid AI-sounding language and marketing speak. Write like a real person sharing genuine insights from data."
+                    "content": "You are a senior business professional writing LinkedIn posts for your organization's research publication. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Write authentically, avoiding AI-sounding language and marketing speak."
                 },
                 {"role": "user", "content": prompt}
             ],
@@ -329,7 +339,7 @@ class WhitepaperProcessor:
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a senior business professional writing authentic LinkedIn posts. Avoid AI-sounding language and marketing speak. Write like a real person sharing genuine insights from data. Focus on being distinctly different from existing content."
+                        "content": "You are a senior business professional writing LinkedIn posts for your organization's research publication. Use 'our research', 'we found', etc. Only reference data that actually appears in the chart analysis provided - never invent statistics. Focus on being distinctly different from existing content while maintaining authenticity."
                     },
                     {"role": "user", "content": stricter_prompt}
                 ],
